@@ -52,14 +52,20 @@ def process_image(img_data):
     # img_data = cv2.imdecode(img_bytes, cv2.IMREAD_COLOR)
 
     # perform image processing
+    print("In processing image")
     height, width, _ = img_data.shape
     starting_size =  (height, width)
+    print("In processing image 2")
     max_starting_dim = max(starting_size[0], starting_size[1])
+    print("In processing image 3")
+
     img_resized_256 = cv2.resize(img_data, (256,256), interpolation=cv2.INTER_AREA if (256 < max_starting_dim) else cv2.INTER_CUBIC)
     img_resized_720 = cv2.resize(img_data, (1280,720), interpolation=cv2.INTER_AREA if (1280 < max_starting_dim) else cv2.INTER_CUBIC)
     img_resized_1080 = cv2.resize(img_data, (1920,1080), interpolation=cv2.INTER_AREA if (1920 < max_starting_dim) else cv2.INTER_CUBIC)
     img_resized_1440 = cv2.resize(img_data, (2560,1440), interpolation=cv2.INTER_AREA if (2560 < max_starting_dim) else cv2.INTER_CUBIC)
     
+    print("In processing image 4")
+
     # decode image data back to image format
     # _, buffer_256 = cv2.imencode('.png', img_resized_256)
     # _, buffer_720 = cv2.imencode('.png', img_resized_720)
@@ -82,15 +88,24 @@ def process_image(img_data):
     # display_image(processed_image_bytes_1440)
 
     # send resized images to the next processing stage
+
     url = os.getenv("NEXT_PROCESSING_STAGE_URL")
-    param_dict = {
-      256: img_resized_256, 
-      720: img_resized_720, 
-      1080: img_resized_1080, 
-      1440: img_resized_1440, 
-    }
+    # param_dict = {
+    #   256: img_resized_256, 
+    #   720: img_resized_720, 
+    #   1080: img_resized_1080, 
+    #   1440: img_resized_1440, 
+    # }
+    files = [
+        ('images', cv2.imencode("png", img_resized_256)),
+        ('images', cv2.imencode("png", img_resized_720)),
+        ('images', cv2.imencode("png", img_resized_1080))
+    ]
     if (url is not None):
-      response = requests.post(url, data=param_dict)
+      print("In processing image 5")
+      response = requests.post(url, files=files)
+      print("In processing image 6")
+      print("Response from next processing stage: ", response.json())
 
     # Return success response
     return jsonify({'message': 'Image uploaded successfully'}), 200
@@ -118,18 +133,22 @@ def checkForFetchedImages(consumer):
   for message in consumer:
     try:
         encoded_frame = message.value["frame_data"] #encoded frame data
-        print("[" + getDatetimeString() + "] Received frame data: " + str(message))
+        print("[" + getDatetimeString() + "] Received frame data")
         frame_bytes = base64.b64decode(encoded_frame)  # decoding using base64
+        print("Got frame bytes")
         nparr = np.frombuffer(frame_bytes, np.uint8)   # converting to numpyArray for cv2
+        print("Got nparr")
         frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)  # final Frame formilization
+        print("Frame: ", frame)
+        print("Got cv2 frame")
         process_image(frame)
 
-        print(nparr.size)
+        # print(nparr.size)
 
     except Exception as e:
         print(f"Error decoding frame: {e}")
 
-    print(f"Received frame data: {message.topic}, {message.partition}, {message.offset}")
+    # print(f"Received frame data: {message.topic}, {message.partition}, {message.offset}")
     
 def getEnvs(): 
   return {
@@ -160,7 +179,7 @@ def initConsumer(config):
     value_deserializer=lambda v: json.loads(v.decode("utf-8")),
     auto_offset_reset="earliest",  # start from beginning if no offset
     enable_auto_commit=True,       # commit offsets automatically
-    group_id="video-consumer-group" # group id so Kafka tracks position
+    group_id="component-2" # group id so Kafka tracks position
   )
   print("Connected to Kafka. Listening for messages...")
   return consumer
