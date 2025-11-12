@@ -171,5 +171,5 @@ if __name__ == '__main__':
   config = getConfig()
   consumer = initConsumer(config)
   # app.run(port=8000, debug=True)
-  oldPollKafkaIndefinitely(consumer)
-  # checkForFetchedImages(consumer)
+#   oldPollKafkaIndefinitely(consumer)
+  checkForFetchedImages(consumer)
