@@ -32,19 +32,19 @@ def display_image(img, windowName=""):
 
 # @app.route('/upload', methods=['POST'])
 # @cross_origin(origin="*")
-def process_image():
+def process_image(file):
 # def upload_image():
   # Check if the request contains a file
-  if 'image' not in request.files:
-    return jsonify({'error': 'No image file provided'}), 400
+  # if 'image' not in request.files:
+  #   return jsonify({'error': 'No image file provided'}), 400
 
-  file = request.files['image']
+  # file = request.files['image']
 
   # Check if the file is valid
-  if file.filename == '':
-    return jsonify({'error': 'No selected file'}), 400
+  # if file.filename == '':
+  #   return jsonify({'error': 'No selected file'}), 400
 
-  if file and allowed_file(file.filename):
+  # if file and allowed_file(file.filename):
     # read file data
     file_bytes = np.frombuffer(file.read(), np.uint8)
     img_data = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
@@ -81,19 +81,24 @@ def process_image():
 
     # send resized images to the next processing stage
     url = os.getenv("NEXT_PROCESSING_STAGE_URL")
-    param_dict = {
-      256: img_resized_256, 
-      720: img_resized_720, 
-      1080: img_resized_1080, 
-      1440: img_resized_1440, 
-    }
+    files = [
+      ('images', img_resized_256),
+      ('images', img_resized_720),
+      ('images', img_resized_1080)
+    ] 
+    # param_dict = {
+    #   256: img_resized_256, 
+    #   720: img_resized_720, 
+    #   1080: img_resized_1080, 
+    #   1440: img_resized_1440, 
+    # }
     if (url is not None):
-      response = requests.post(url, data=param_dict)
+      response = requests.post(url, files=files)
 
     # Return success response
     return jsonify({'message': 'Image uploaded successfully'}), 200
 
-  return jsonify({'error': 'Invalid file type'}), 400
+  # return jsonify({'error': 'Invalid file type'}), 400
 
 def getDatetimeString(): 
   return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -102,12 +107,12 @@ def pollKafkaIndefinitely(consumer):
   while True: 
     print("[" + getDatetimeString() + "] Polling kafka")
     msg = consumer.poll(int(os.getenv("KAFKA_POLL_FREQUENCY") if os.getenv("KAFKA_POLL_FREQUENCY") is not None else "10"))
-    if msg is None:
-      continue
-    if msg.error() is None:
-      # parse the message here
-      print("[" + getDatetimeString() + "] Processing Image(s)")
-      process_image(msg.value())
+    # if msg is None:
+    #   continue
+    # if msg.error() is None:
+    #   # parse the message here
+    print("[" + getDatetimeString() + "] Processing Image(s)")
+    process_image(msg.value())
 
 def getEnvs(): 
   return {
