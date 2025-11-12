@@ -6,9 +6,8 @@ from flask import Flask, request, jsonify
 import cv2
 import matplotlib.pyplot as plt
 from flask_cors import CORS, cross_origin
-from kafka import KafkaConsumer
+from confluent_kafka import Consumer, KafkaError
 from datetime import datetime
-import json
 
 # from kafkaConfig import kafkaConfig, kafkaTopic, kafkaPollFrequency
 
@@ -99,25 +98,16 @@ def process_image():
 def getDatetimeString(): 
   return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-def oldPollKafkaIndefinitely(consumer): 
+def pollKafkaIndefinitely(consumer): 
   while True: 
     print("[" + getDatetimeString() + "] Polling kafka")
     msg = consumer.poll(int(os.getenv("KAFKA_POLL_FREQUENCY") if os.getenv("KAFKA_POLL_FREQUENCY") is not None else "10"))
-    # if msg is None:
-    #   continue
-    # if msg.error() is None:
-    #   # parse the message here
-    # checkForFetchedImages(consumer)
-    print("[" + getDatetimeString() + "] Processing Image(s)")
-    print(str(msg))
-    if (msg != {} and msg.values is not None):
-      process_image(msg.values)
-
-def checkForFetchedImages(consumer): 
-  for message in consumer:
-    data = message.value
-    print("[" + getDatetimeString() + "] Received frame data: " + str(data))
-    process_image(data)
+    if msg is None:
+      continue
+    if msg.error() is None:
+      # parse the message here
+      print("[" + getDatetimeString() + "] Processing Image(s)")
+      process_image(msg.value())
 
 def getEnvs(): 
   return {
@@ -135,23 +125,9 @@ def getConfig():
 }
 
 def initConsumer(config): 
-  # c = Consumer(config)
-  # c.subscribe([os.getenv("KAFKA_TOPIC") if os.getenv("KAFKA_TOPIC") is not None else "my_topic"], on_assign=printConnectionStatus)
-  # return c
-
-  # Create a consumer
-  consumer = KafkaConsumer(
-    # os.getenv("KAFKA_TOPIC") if os.getenv("KAFKA_TOPIC") is not None else "my_topic",  # topic name used by producer = "video_frames"
-    "video_frames",  # topic name used by producer = "video_frames"
-    bootstrap_servers="kafka:9092",  # matches your service name and port = "kafka:9092"
-    # bootstrap_servers=config["bootstrap.servers"],  # matches your service name and port = "kafka:9092"
-    value_deserializer=lambda v: json.loads(v.decode("utf-8")),
-    auto_offset_reset="earliest",  # start from beginning if no offset
-    enable_auto_commit=True,       # commit offsets automatically
-    group_id="video-consumer-group" # group id so Kafka tracks position
-  )
-  print("Connected to Kafka. Listening for messages...")
-  return consumer
+  c = Consumer(config)
+  c.subscribe([os.getenv("KAFKA_TOPIC") if os.getenv("KAFKA_TOPIC") is not None else "my_topic"], on_assign=printConnectionStatus)
+  return c
 
 if __name__ == '__main__':
   load_dotenv()
@@ -159,7 +135,4 @@ if __name__ == '__main__':
   config = getConfig()
   consumer = initConsumer(config)
   # app.run(port=8000, debug=True)
-  for message in consumer: 
-    print(message)
-  oldPollKafkaIndefinitely(consumer)
-  # checkForFetchedImages(consumer)
+  pollKafkaIndefinitely(consumer)
