@@ -33,19 +33,19 @@ def display_image(img, windowName=""):
 
 # @app.route('/upload', methods=['POST'])
 # @cross_origin(origin="*")
-def process_image():
+def process_image(file):
 # def upload_image():
   # Check if the request contains a file
-  if 'image' not in request.files:
-    return jsonify({'error': 'No image file provided'}), 400
+  # if 'image' not in request.files:
+    # return jsonify({'error': 'No image file provided'}), 400
 
-  file = request.files['image']
+  # file = request.files['image']
 
   # Check if the file is valid
-  if file.filename == '':
-    return jsonify({'error': 'No selected file'}), 400
+  # if file.filename == '':
+    # return jsonify({'error': 'No selected file'}), 400
 
-  if file and allowed_file(file.filename):
+  # if file and allowed_file(file.filename):
     # read file data
     file_bytes = np.frombuffer(file.read(), np.uint8)
     img_data = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
@@ -94,7 +94,7 @@ def process_image():
     # Return success response
     return jsonify({'message': 'Image uploaded successfully'}), 200
 
-  return jsonify({'error': 'Invalid file type'}), 400
+  # return jsonify({'error': 'Invalid file type'}), 400
 
 def getDatetimeString(): 
   return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -102,16 +102,16 @@ def getDatetimeString():
 def oldPollKafkaIndefinitely(consumer): 
   while True: 
     print("[" + getDatetimeString() + "] Polling kafka")
-    msg = consumer.poll(int(os.getenv("KAFKA_POLL_FREQUENCY") if os.getenv("KAFKA_POLL_FREQUENCY") is not None else "10"))
+    # msg = consumer.poll(int(os.getenv("KAFKA_POLL_FREQUENCY") if os.getenv("KAFKA_POLL_FREQUENCY") is not None else "10"))
     # if msg is None:
     #   continue
     # if msg.error() is None:
     #   # parse the message here
-    # checkForFetchedImages(consumer)
-    print("[" + getDatetimeString() + "] Processing Image(s)")
-    print(str(msg))
-    if (msg != {} and msg.values is not None):
-      process_image(msg.values)
+    checkForFetchedImages(consumer)
+    # print("[" + getDatetimeString() + "] Processing Image(s)")
+    # print(str(msg))
+    # if (msg != {} and msg.values is not None):
+      # process_image(msg.values)
 
 def checkForFetchedImages(consumer): 
   for message in consumer:
@@ -159,7 +159,5 @@ if __name__ == '__main__':
   config = getConfig()
   consumer = initConsumer(config)
   # app.run(port=8000, debug=True)
-  for message in consumer: 
-    print(message)
   oldPollKafkaIndefinitely(consumer)
   # checkForFetchedImages(consumer)
