@@ -10,12 +10,15 @@ consumer = KafkaConsumer(
     "video_frames",                # topic name used by producer
     bootstrap_servers="kafka:9092",  # matches your service name and port
     value_deserializer=lambda v: json.loads(v.decode("utf-8")),
-    auto_offset_reset="earliest",  # start from beginning if no offset
+    auto_offset_reset="latest",  # start from beginning if no offset
     enable_auto_commit=True,       # commit offsets automatically
     group_id="video-consumer-group" # group id so Kafka tracks position
 )
 
 print("Connected to Kafka. Listening for messages")
+print("Connected: " + str(consumer.bootstrap_connected()))
+print("Assignment: " + str(consumer.assignment()))
+print("Subscription: " + str(consumer.subscription()))
 
 for message in consumer:
     try:
