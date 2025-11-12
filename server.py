@@ -134,7 +134,7 @@ def checkForFetchedImages(consumer):
 def getEnvs(): 
   return {
     "KAFKA_TOPIC": os.getenv("KAFKA_TOPIC"), 
-    "KAFKA_SERVER_URL": os.getenv("KAFKA_SERVER_URL"), 
+    "KAFKA_BOOTSTRAP_SERVERS": os.getenv("KAFKA_BOOTSTRAP_SERVERS"), 
     "KAFKA_POLL_FREQUENCY": os.getenv("KAFKA_POLL_FREQUENCY"), 
     "NEXT_PROCESSING_STAGE_URL": os.getenv("NEXT_PROCESSING_STAGE_URL")
   }
