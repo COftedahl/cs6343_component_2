@@ -1,3 +1,4 @@
+import base64
 import requests
 import os
 from dotenv import load_dotenv
@@ -33,7 +34,7 @@ def display_image(img, windowName=""):
 
 # @app.route('/upload', methods=['POST'])
 # @cross_origin(origin="*")
-def process_image(file):
+def process_image(img_data):
 # def upload_image():
   # Check if the request contains a file
   # if 'image' not in request.files:
@@ -47,8 +48,8 @@ def process_image(file):
 
   # if file and allowed_file(file.filename):
     # read file data
-    file_bytes = np.frombuffer(file.read(), np.uint8)
-    img_data = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
+    # file_bytes = np.frombuffer(file.read(), np.uint8)
+    # img_data = cv2.imdecode(img_bytes, cv2.IMREAD_COLOR)
 
     # perform image processing
     height, width, _ = img_data.shape
@@ -115,10 +116,21 @@ def oldPollKafkaIndefinitely(consumer):
 
 def checkForFetchedImages(consumer): 
   for message in consumer:
-    data = message.value
-    print("[" + getDatetimeString() + "] Received frame data: " + str(data))
-    process_image(data)
+    try:
+        encoded_frame = message.value["frame_data"] #encoded frame data
+        print("[" + getDatetimeString() + "] Received frame data: " + str(message))
+        frame_bytes = base64.b64decode(encoded_frame)  # decoding using base64
+        nparr = np.frombuffer(frame_bytes, np.uint8)   # converting to numpyArray for cv2
+        frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)  # final Frame formilization
+        process_image(frame)
 
+        print(nparr.size)
+
+    except Exception as e:
+        print(f"Error decoding frame: {e}")
+
+    print(f"Received frame data: {message.topic}, {message.partition}, {message.offset}")
+    
 def getEnvs(): 
   return {
     "KAFKA_TOPIC": os.getenv("KAFKA_TOPIC"), 
