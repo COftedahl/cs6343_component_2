@@ -1,3 +1,4 @@
+import random
 import base64
 import requests
 import os
@@ -52,19 +53,19 @@ def process_image(img_data):
     # img_data = cv2.imdecode(img_bytes, cv2.IMREAD_COLOR)
 
     # perform image processing
-    print("In processing image")
+    # print("In processing image")
     height, width, _ = img_data.shape
     starting_size =  (height, width)
-    print("In processing image 2")
+    # print("In processing image 2")
     max_starting_dim = max(starting_size[0], starting_size[1])
-    print("In processing image 3")
+    # print("In processing image 3")
 
     img_resized_256 = cv2.resize(img_data, (256,256), interpolation=cv2.INTER_AREA if (256 < max_starting_dim) else cv2.INTER_CUBIC)
     img_resized_720 = cv2.resize(img_data, (1280,720), interpolation=cv2.INTER_AREA if (1280 < max_starting_dim) else cv2.INTER_CUBIC)
     img_resized_1080 = cv2.resize(img_data, (1920,1080), interpolation=cv2.INTER_AREA if (1920 < max_starting_dim) else cv2.INTER_CUBIC)
     img_resized_1440 = cv2.resize(img_data, (2560,1440), interpolation=cv2.INTER_AREA if (2560 < max_starting_dim) else cv2.INTER_CUBIC)
     
-    print("In processing image 4")
+    # print("In processing image 4")
 
     # decode image data back to image format
     # _, buffer_256 = cv2.imencode('.png', img_resized_256)
@@ -96,19 +97,50 @@ def process_image(img_data):
     #   1080: img_resized_1080, 
     #   1440: img_resized_1440, 
     # }
+
+    encoding = '.jpg'
+
+    encoded256 = cv2.imencode(encoding, img_resized_256)
+    encoded720 = cv2.imencode(encoding, img_resized_720)
+    encoded1080 = cv2.imencode(encoding, img_resized_1080)
+    #use entry [1] in the tuple returned from imencode: tuple is of format [successIndicator, buffer]
+
+    # print("Encoding status: " + str(encoded256[0]) + ", " + str(encoded720[0]) + ", " + str(encoded1080[0]))
+
+    # ready_to_send_256 = base64.b64encode(encoded256[1]).decode("utf-8")
+    # ready_to_send_720 = base64.b64encode(encoded720[1]).decode("utf-8")
+    # ready_to_send_1080 = base64.b64encode(encoded1080[1]).decode("utf-8")
+    ready_to_send_256 = encoded256[1]
+    ready_to_send_720 = encoded720[1]
+    ready_to_send_1080 = encoded1080[1]
+
+    saveMin = 0
+    saveChance = int(os.getenv("CHANCE_OF_TEN_TO_SAVE_IMG")) if os.getenv("CHANCE_OF_TEN_TO_SAVE_IMG") is not None else 0
+    saveMax = 10
+    randVal = random.randint(saveMin, saveMax)
+    if (randVal <= saveChance): 
+        file_256 = cv2.imwrite("/data/output/" + getDatetimeString() + "256.png", img_resized_256)
+        file_720 = cv2.imwrite("/data/output/" + getDatetimeString() + "720.png", img_resized_720)
+        file_1080 = cv2.imwrite("/data/output/" + getDatetimeString() + "1080.png", img_resized_1080)
+    # print("in processing image 4.5")
+
+    delimiter = '-'
+    streamTopic = os.getenv("KAFKA_TOPIC") if os.getenv("KAFKA_TOPIC") is not None else "my_topic"
+
     files = [
-        ('images', cv2.imencode("png", img_resized_256)),
-        ('images', cv2.imencode("png", img_resized_720)),
-        ('images', cv2.imencode("png", img_resized_1080))
+        (streamTopic + delimiter + '256.png', ready_to_send_256),
+        (streamTopic + delimiter + '720.png', ready_to_send_720),
+        (streamTopic + delimiter + '1080.png', ready_to_send_1080) 
     ]
     if (url is not None):
-      print("In processing image 5")
+    #   print("In processing image 5")
       response = requests.post(url, files=files)
-      print("In processing image 6")
-      print("Response from next processing stage: ", response.json())
+    #   print("In processing image 6")
+      print("Response from next processing stage: ", response)
+    #   print("Response from next processing stage: ", response.json())
 
     # Return success response
-    return jsonify({'message': 'Image uploaded successfully'}), 200
+    # return jsonify({'message': 'Image uploaded successfully'}), 200
 
   # return jsonify({'error': 'Invalid file type'}), 400
 
@@ -135,12 +167,12 @@ def checkForFetchedImages(consumer):
         encoded_frame = message.value["frame_data"] #encoded frame data
         print("[" + getDatetimeString() + "] Received frame data")
         frame_bytes = base64.b64decode(encoded_frame)  # decoding using base64
-        print("Got frame bytes")
+        # print("Got frame bytes")
         nparr = np.frombuffer(frame_bytes, np.uint8)   # converting to numpyArray for cv2
-        print("Got nparr")
+        # print("Got nparr")
         frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)  # final Frame formilization
-        print("Frame: ", frame)
-        print("Got cv2 frame")
+        # print("Frame: ", frame)
+        # print("Got cv2 frame")
         process_image(frame)
 
         # print(nparr.size)
@@ -152,10 +184,12 @@ def checkForFetchedImages(consumer):
     
 def getEnvs(): 
   return {
+    "CHANCE_OF_TEN_TO_SAVE_IMG": os.getenv("CHANCE_OF_TEN_TO_SAVE_IMG"), 
     "KAFKA_TOPIC": os.getenv("KAFKA_TOPIC"), 
-    "KAFKA_BOOTSTRAP_SERVERS": os.getenv("KAFKA_BOOTSTRAP_SERVERS"), 
+    "KAFKA_SERVER_URL": os.getenv("KAFKA_SERVER_URL"), 
     "KAFKA_POLL_FREQUENCY": os.getenv("KAFKA_POLL_FREQUENCY"), 
-    "NEXT_PROCESSING_STAGE_URL": os.getenv("NEXT_PROCESSING_STAGE_URL")
+    "NEXT_PROCESSING_STAGE_URL": os.getenv("NEXT_PROCESSING_STAGE_URL"), 
+    "GROUP_ID": os.getenv("GROUP_ID"), 
   }
 
 def getConfig(): 
@@ -172,14 +206,14 @@ def initConsumer(config):
 
   # Create a consumer
   consumer = KafkaConsumer(
-    # os.getenv("KAFKA_TOPIC") if os.getenv("KAFKA_TOPIC") is not None else "my_topic",  # topic name used by producer = "video_frames"
-    "video_frames",  # topic name used by producer = "video_frames"
-    bootstrap_servers="kafka:9092",  # matches your service name and port = "kafka:9092"
-    # bootstrap_servers=config["bootstrap.servers"],  # matches your service name and port = "kafka:9092"
+    os.getenv("KAFKA_TOPIC") if os.getenv("KAFKA_TOPIC") is not None else "my_topic",  # topic name used by producer = "video_frames"
+    # "video_frames",  # topic name used by producer = "video_frames"
+    # bootstrap_servers="kafka:9092",  # matches your service name and port = "kafka:9092"
+    bootstrap_servers=config["bootstrap.servers"],  # matches your service name and port = "kafka:9092"
     value_deserializer=lambda v: json.loads(v.decode("utf-8")),
     auto_offset_reset="earliest",  # start from beginning if no offset
     enable_auto_commit=True,       # commit offsets automatically
-    group_id="component-2" # group id so Kafka tracks position
+    group_id=os.getenv("GROUP_ID") if os.getenv("GROUP_ID") is not None else "component-2" # group id so Kafka tracks position
   )
   print("Connected to Kafka. Listening for messages...")
   return consumer
