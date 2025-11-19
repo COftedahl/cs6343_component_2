@@ -98,7 +98,7 @@ def process_image(img_data):
     #   1440: img_resized_1440, 
     # }
 
-    encoding = '.jpg'
+    encoding = '.png'
 
     encoded256 = cv2.imencode(encoding, img_resized_256)
     encoded720 = cv2.imencode(encoding, img_resized_720)
@@ -119,22 +119,27 @@ def process_image(img_data):
     saveMax = 10
     randVal = random.randint(saveMin, saveMax)
     if (randVal <= saveChance): 
-        file_256 = cv2.imwrite("/data/output/" + getDatetimeString() + "256.png", img_resized_256)
-        file_720 = cv2.imwrite("/data/output/" + getDatetimeString() + "720.png", img_resized_720)
-        file_1080 = cv2.imwrite("/data/output/" + getDatetimeString() + "1080.png", img_resized_1080)
+        file_256 = cv2.imwrite("/data/output/" + getDatetimeString() + "256" + encoding, img_resized_256)
+        file_720 = cv2.imwrite("/data/output/" + getDatetimeString() + "720" + encoding, img_resized_720)
+        file_1080 = cv2.imwrite("/data/output/" + getDatetimeString() + "1080" + encoding, img_resized_1080)
     # print("in processing image 4.5")
 
     delimiter = '-'
     streamTopic = os.getenv("KAFKA_TOPIC") if os.getenv("KAFKA_TOPIC") is not None else "my_topic"
 
     files = [
-        (streamTopic + delimiter + '256.png', ready_to_send_256),
-        (streamTopic + delimiter + '720.png', ready_to_send_720),
-        (streamTopic + delimiter + '1080.png', ready_to_send_1080) 
+        ('256' + encoding, ready_to_send_256),
+        ('720' + encoding, ready_to_send_720),
+        ('1080' + encoding, ready_to_send_1080) 
     ]
+    # files = [
+    #     (streamTopic + delimiter + '256.png', ready_to_send_256),
+    #     (streamTopic + delimiter + '720.png', ready_to_send_720),
+    #     (streamTopic + delimiter + '1080.png', ready_to_send_1080) 
+    # ]
     if (url is not None):
     #   print("In processing image 5")
-      response = requests.post(url, files=files)
+      response = requests.post(url, files=files, json={"topic":streamTopic})
     #   print("In processing image 6")
       print("Response from next processing stage: ", response)
     #   print("Response from next processing stage: ", response.json())
