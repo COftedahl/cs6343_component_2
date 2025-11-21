@@ -110,9 +110,12 @@ def process_image(img_data):
     # ready_to_send_256 = base64.b64encode(encoded256[1]).decode("utf-8")
     # ready_to_send_720 = base64.b64encode(encoded720[1]).decode("utf-8")
     # ready_to_send_1080 = base64.b64encode(encoded1080[1]).decode("utf-8")
-    ready_to_send_256 = encoded256[1]
-    ready_to_send_720 = encoded720[1]
-    ready_to_send_1080 = encoded1080[1]
+    ready_to_send_256 = base64.b64encode(encoded256[1])
+    ready_to_send_720 = base64.b64encode(encoded720[1])
+    ready_to_send_1080 = base64.b64encode(encoded1080[1])
+    # ready_to_send_256 = encoded256[1]
+    # ready_to_send_720 = encoded720[1]
+    # ready_to_send_1080 = encoded1080[1]
 
     saveMin = 0
     saveChance = int(os.getenv("CHANCE_OF_TEN_TO_SAVE_IMG")) if os.getenv("CHANCE_OF_TEN_TO_SAVE_IMG") is not None else 0
@@ -130,7 +133,7 @@ def process_image(img_data):
     files = [
         ('256' + encoding, ready_to_send_256),
         ('720' + encoding, ready_to_send_720),
-        ('1080' + encoding, ready_to_send_1080) 
+        ('1080' + encoding, ready_to_send_1080), 
     ]
     # files = [
     #     (streamTopic + delimiter + '256.png', ready_to_send_256),
@@ -139,10 +142,14 @@ def process_image(img_data):
     # ]
     if (url is not None):
     #   print("In processing image 5")
-      response = requests.post(url, files=files, json={"topic":streamTopic})
+      print("Stream topic", streamTopic)
+      headers = {"Content-Type":"multipart/form-data"}
+      # headers = {"Content-Type":"application/json"}
+      response = requests.post(url, files=files, json={"topic":streamTopic}, data={"topic":streamTopic}, headers=headers)
+      # response = requests.post(url, files=files)
     #   print("In processing image 6")
       print("Response from next processing stage: ", response)
-    #   print("Response from next processing stage: ", response.json())
+      print("Response from next processing stage: ", response.json())
 
     # Return success response
     # return jsonify({'message': 'Image uploaded successfully'}), 200
